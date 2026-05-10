@@ -37,7 +37,7 @@ struct BatteryIcon: View {
                     .frame(width: capsuleWidth, height: capsuleHeight)
 
                 // Percentage text
-                Text("\(Int(percentage))%") 
+                Text("\(Int(percentage))%")
                     .font(.system(size: 10, weight: .medium, design: .monospaced))
                     .foregroundColor(statusColor)
             }

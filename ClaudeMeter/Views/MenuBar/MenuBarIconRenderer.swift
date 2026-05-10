@@ -18,6 +18,7 @@ struct MenuBarIconRenderer {
         isStale: Bool,
         iconStyle: IconStyle,
         weeklyPercentage: Double = 0,
+        useColor: Bool = true,
         accountLabel: String? = nil
     ) -> NSImage {
         let iconView = MenuBarIconView(
@@ -27,6 +28,7 @@ struct MenuBarIconRenderer {
             isStale: isStale,
             iconStyle: iconStyle,
             weeklyPercentage: weeklyPercentage,
+            useColor: useColor,
             accountLabel: accountLabel
         )
 
@@ -40,7 +42,9 @@ struct MenuBarIconRenderer {
             ) ?? NSImage()
         }
 
-        nsImage.isTemplate = false
+        // In monochrome mode the menu bar handles tinting (white on dark, black on light) via
+        // template rendering. In coloured mode we want the original status colours preserved.
+        nsImage.isTemplate = !useColor
         return nsImage
     }
 }

@@ -30,6 +30,10 @@ struct AppSettings: Codable, Equatable, Sendable {
     /// Menu bar icon display style
     var iconStyle: IconStyle
 
+    /// Use the green/orange/red status colours in the menu bar icon. When false (default), the
+    /// icon renders as a template image so it picks up the system menu bar tint (white in dark mode).
+    var useColoredIcon: Bool
+
     static let `default` = AppSettings(
         refreshInterval: 60,
         hasNotificationsEnabled: true,
@@ -37,7 +41,8 @@ struct AppSettings: Codable, Equatable, Sendable {
         isFirstLaunch: true,
         accounts: [],
         isSonnetUsageShown: false,
-        iconStyle: .battery
+        iconStyle: .battery,
+        useColoredIcon: false
     )
 
     enum CodingKeys: String, CodingKey {
@@ -48,6 +53,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         case accounts
         case isSonnetUsageShown = "show_sonnet_usage"
         case iconStyle = "icon_style"
+        case useColoredIcon = "use_colored_icon"
         // Legacy keys, decoded only for migration
         case legacyCachedOrganizationId = "cached_organization_id"
     }
@@ -59,7 +65,8 @@ struct AppSettings: Codable, Equatable, Sendable {
         isFirstLaunch: Bool,
         accounts: [ClaudeAccount],
         isSonnetUsageShown: Bool,
-        iconStyle: IconStyle
+        iconStyle: IconStyle,
+        useColoredIcon: Bool
     ) {
         self.refreshInterval = refreshInterval
         self.hasNotificationsEnabled = hasNotificationsEnabled
@@ -68,6 +75,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         self.accounts = accounts
         self.isSonnetUsageShown = isSonnetUsageShown
         self.iconStyle = iconStyle
+        self.useColoredIcon = useColoredIcon
     }
 
     init(from decoder: Decoder) throws {
@@ -79,6 +87,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         isFirstLaunch = try container.decodeIfPresent(Bool.self, forKey: .isFirstLaunch) ?? defaults.isFirstLaunch
         isSonnetUsageShown = try container.decodeIfPresent(Bool.self, forKey: .isSonnetUsageShown) ?? defaults.isSonnetUsageShown
         iconStyle = try container.decodeIfPresent(IconStyle.self, forKey: .iconStyle) ?? defaults.iconStyle
+        useColoredIcon = try container.decodeIfPresent(Bool.self, forKey: .useColoredIcon) ?? defaults.useColoredIcon
 
         if let decoded = try container.decodeIfPresent([ClaudeAccount].self, forKey: .accounts) {
             accounts = decoded
@@ -100,6 +109,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         try container.encode(accounts, forKey: .accounts)
         try container.encode(isSonnetUsageShown, forKey: .isSonnetUsageShown)
         try container.encode(iconStyle, forKey: .iconStyle)
+        try container.encode(useColoredIcon, forKey: .useColoredIcon)
     }
 }
 

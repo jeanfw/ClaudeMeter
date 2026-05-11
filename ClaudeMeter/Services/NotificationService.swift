@@ -138,6 +138,66 @@ final class NotificationService: NSObject, NotificationServiceProtocol, UNUserNo
         try await center.add(request)
     }
 
+    /// Evaluate a weekly pacing transition and fire a notification on entering over- or
+    /// under-consumption (and only when the state has *changed* from the last notified one).
+    func evaluatePacingTransition(
+        accountId: UUID,
+        accountLabel: String,
+        result: PacingResult,
+        weeklyResetAt: Date,
+        settings: AppSettings
+    ) async {
+        guard settings.notificationThresholds.isPacingNotificationEnabled else { return }
+
+        var state = await settingsRepository.loadNotificationState()
+        let previous = state.lastPacingNotifiedState[accountId]
+
+        // Only notify on a *change* into one of the two actionable states.
+        let shouldNotify = (result.state == .overConsumption || result.state == .underConsumption)
+            && previous != result.state
+
+        if shouldNotify, let projected = result.projectedFinal {
+            let threshold: UsageThresholdType = result.state == .overConsumption ? .pacingOver : .pacingUnder
+            try? await sendPacingNotification(
+                accountLabel: accountLabel,
+                percentage: projected,
+                threshold: threshold,
+                resetTime: weeklyResetAt
+            )
+            state.lastPacingNotifiedState[accountId] = result.state
+        } else if result.state == .onTrack || result.state == .indeterminate {
+            // Returning to on-track / losing a verdict resets the tracker so the *next* entry
+            // into over/under will fire a notification again.
+            state.lastPacingNotifiedState[accountId] = result.state
+        }
+
+        try? await settingsRepository.saveNotificationState(state)
+    }
+
+    private func sendPacingNotification(
+        accountLabel: String,
+        percentage: Double,
+        threshold: UsageThresholdType,
+        resetTime: Date
+    ) async throws {
+        guard await shouldSendNotifications() else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = "\(accountLabel) — \(threshold.title)"
+        content.body = threshold.body(percentage: percentage, resetTime: resetTime)
+        content.sound = .default
+        content.categoryIdentifier = "usage.pacing"
+        content.userInfo = ["threshold": threshold.rawValue, "percentage": percentage]
+
+        let request = UNNotificationRequest(
+            identifier: "pacing.\(threshold.rawValue).\(UUID())",
+            content: content,
+            trigger: nil
+        )
+
+        try await center.add(request)
+    }
+
     /// Check system notification permissions
     func checkNotificationPermissions() async -> Bool {
         await center.authorizationStatus() == .authorized

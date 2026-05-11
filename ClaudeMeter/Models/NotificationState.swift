@@ -15,10 +15,36 @@ struct NotificationState: Codable, Equatable, Sendable {
     /// Last known usage percentage to detect reset
     var lastPercentage: Double = 0
 
+    /// Last weekly pacing state we notified the user about, per account. Used to fire a
+    /// notification only on transitions rather than on every refresh.
+    var lastPacingNotifiedState: [UUID: PacingState] = [:]
+
     enum CodingKeys: String, CodingKey {
         case hasWarningBeenNotified = "warning_notified"
         case hasCriticalBeenNotified = "critical_notified"
         case lastPercentage = "last_percentage"
+        case lastPacingNotifiedState = "last_pacing_notified_state"
+    }
+
+    init(
+        hasWarningBeenNotified: Bool = false,
+        hasCriticalBeenNotified: Bool = false,
+        lastPercentage: Double = 0,
+        lastPacingNotifiedState: [UUID: PacingState] = [:]
+    ) {
+        self.hasWarningBeenNotified = hasWarningBeenNotified
+        self.hasCriticalBeenNotified = hasCriticalBeenNotified
+        self.lastPercentage = lastPercentage
+        self.lastPacingNotifiedState = lastPacingNotifiedState
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        hasWarningBeenNotified = try container.decodeIfPresent(Bool.self, forKey: .hasWarningBeenNotified) ?? false
+        hasCriticalBeenNotified = try container.decodeIfPresent(Bool.self, forKey: .hasCriticalBeenNotified) ?? false
+        lastPercentage = try container.decodeIfPresent(Double.self, forKey: .lastPercentage) ?? 0
+        // Backwards-compat: this key didn't exist before.
+        lastPacingNotifiedState = try container.decodeIfPresent([UUID: PacingState].self, forKey: .lastPacingNotifiedState) ?? [:]
     }
 }
 

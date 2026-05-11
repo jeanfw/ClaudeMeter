@@ -50,8 +50,40 @@ enum Constants {
         /// 7-day weekly window duration
         static let weeklyWindow: TimeInterval = 7 * 24 * 60 * 60
 
-        /// Ratio threshold for "at risk" status (using faster than sustainable)
+        /// Ratio threshold for "at risk" status (using faster than sustainable). Used by the
+        /// session-window `isAtRisk` check.
         static let riskThreshold: Double = 1.2
+
+        // MARK: - Weekly classifier (active-hours based)
+
+        /// Per-snapshot utilization delta below this is treated as noise (not active). The Claude
+        /// API doesn't return floating-point noise — its utilization values are server-computed
+        /// ratios with one or two decimals — so any positive delta is real activity. We keep a
+        /// tiny floor only to guard against pathological encoding edge cases.
+        static let activityEpsilon: Double = 0.001
+
+        /// Snapshots farther apart than this are treated as an offline gap (skipped, not
+        /// counted as either active or inactive).
+        static let maxSnapshotGap: TimeInterval = 30 * 60
+
+        /// Minimum cumulative active time before the classifier produces a verdict.
+        static let minimumActiveTimeForVerdict: TimeInterval = 60 * 60
+
+        /// Don't produce a verdict in the first day of the weekly window — too easy to flap.
+        static let minimumElapsedForVerdict: TimeInterval = 24 * 60 * 60
+
+        /// Need at least this many snapshots before producing a verdict.
+        static let minimumHistoryEntriesForVerdict: Int = 5
+
+        /// Projected final utilization at or above this → `overConsumption`.
+        static let overConsumptionThreshold: Double = 100
+
+        /// Projected final utilization below this → `underConsumption`.
+        static let underConsumptionThreshold: Double = 70
+
+        /// Cap on persisted history entries per account (defensive — pruning by reset is the
+        /// primary mechanism). ~10 days at 60s polling.
+        static let maxHistoryEntries: Int = 1000
     }
 
     /// Usage threshold configuration

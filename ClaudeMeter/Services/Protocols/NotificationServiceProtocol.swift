@@ -13,12 +13,16 @@ enum UsageThresholdType: String {
     case warning
     case critical
     case reset
+    case pacingOver
+    case pacingUnder
 
     var title: String {
         switch self {
         case .warning: return "Usage Warning"
         case .critical: return "Critical Usage"
         case .reset: return "Session Reset"
+        case .pacingOver: return "Pacing — Burning Fast"
+        case .pacingUnder: return "Pacing — Slow"
         }
     }
 
@@ -34,6 +38,10 @@ enum UsageThresholdType: String {
             return "Critical: \(Int(percentage))% of session used. Resets \(resetString)"
         case .reset:
             return "Your usage limits have been reset. Fresh capacity available!"
+        case .pacingOver:
+            return "Projected to hit ~\(Int(percentage))% of your weekly limit before reset \(resetString)."
+        case .pacingUnder:
+            return "Projected to end the week at ~\(Int(percentage))% — you can ramp up. Resets \(resetString)."
         }
     }
 }
@@ -62,6 +70,16 @@ protocol NotificationServiceProtocol {
 
     /// Send session reset notification
     func sendResetNotification() async throws
+
+    /// Evaluate a weekly pacing transition for a specific account and fire a notification if
+    /// the state has moved into over- or under-consumption (and the setting is enabled).
+    func evaluatePacingTransition(
+        accountId: UUID,
+        accountLabel: String,
+        result: PacingResult,
+        weeklyResetAt: Date,
+        settings: AppSettings
+    ) async
 
     /// Check system notification permissions
     func checkNotificationPermissions() async -> Bool

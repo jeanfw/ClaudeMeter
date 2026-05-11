@@ -39,7 +39,8 @@ final class AppModelTests: XCTestCase {
             settingsRepository: settingsRepository,
             keychainRepository: keychainRepository,
             usageService: usageService,
-            notificationService: notificationService
+            notificationService: notificationService,
+            pacingHistoryRepository: PacingHistoryRepositoryFake()
         )
 
         await appModel.bootstrap()
@@ -68,7 +69,8 @@ final class AppModelTests: XCTestCase {
             settingsRepository: settingsRepository,
             keychainRepository: keychainRepository,
             usageService: usageService,
-            notificationService: notificationService
+            notificationService: notificationService,
+            pacingHistoryRepository: PacingHistoryRepositoryFake()
         )
 
         await appModel.bootstrap()
@@ -156,7 +158,8 @@ final class AppModelTests: XCTestCase {
             settingsRepository: settingsRepository,
             keychainRepository: keychainRepository,
             usageService: usageService,
-            notificationService: NotificationServiceSpy()
+            notificationService: NotificationServiceSpy(),
+            pacingHistoryRepository: PacingHistoryRepositoryFake()
         )
         await appModel.bootstrap()
 
@@ -198,7 +201,8 @@ final class AppModelTests: XCTestCase {
             settingsRepository: settingsRepository,
             keychainRepository: keychainRepository,
             usageService: usageService,
-            notificationService: NotificationServiceSpy()
+            notificationService: NotificationServiceSpy(),
+            pacingHistoryRepository: PacingHistoryRepositoryFake()
         )
         await appModel.bootstrap()
 
@@ -213,7 +217,8 @@ final class AppModelTests: XCTestCase {
         notificationService.hasPermission = true
         let appModel = makeAppModel(
             usageService: UsageServiceStub(fetchUsageResult: .failure(TestError(message: TestConstants.unexpectedErrorMessage))),
-            notificationService: notificationService
+            notificationService: notificationService,
+            pacingHistoryRepository: PacingHistoryRepositoryFake()
         )
 
         await appModel.requestNotificationPermissionIfNeeded()
@@ -226,7 +231,8 @@ final class AppModelTests: XCTestCase {
         notificationService.hasPermission = false
         let appModel = makeAppModel(
             usageService: UsageServiceStub(fetchUsageResult: .failure(TestError(message: TestConstants.unexpectedErrorMessage))),
-            notificationService: notificationService
+            notificationService: notificationService,
+            pacingHistoryRepository: PacingHistoryRepositoryFake()
         )
 
         await appModel.requestNotificationPermissionIfNeeded()
@@ -238,7 +244,8 @@ final class AppModelTests: XCTestCase {
         let notificationService = NotificationServiceSpy()
         let appModel = makeAppModel(
             usageService: UsageServiceStub(fetchUsageResult: .failure(TestError(message: TestConstants.unexpectedErrorMessage))),
-            notificationService: notificationService
+            notificationService: notificationService,
+            pacingHistoryRepository: PacingHistoryRepositoryFake()
         )
 
         try await appModel.sendTestNotification()
@@ -253,15 +260,19 @@ final class AppModelTests: XCTestCase {
 @MainActor
 private func makeAppModel(
     usageService: UsageServiceProtocol,
-    notificationService: NotificationServiceSpy = NotificationServiceSpy(),
-    settingsRepository: SettingsRepositoryFake = SettingsRepositoryFake(),
-    keychainRepository: KeychainRepositoryFake = KeychainRepositoryFake()
+    notificationService: NotificationServiceSpy? = nil,
+    settingsRepository: SettingsRepositoryFake? = nil,
+    keychainRepository: KeychainRepositoryFake? = nil,
+    pacingHistoryRepository: PacingHistoryRepositoryFake? = nil
 ) -> AppModel {
+    // Defaults are constructed inside the body because Swift 6 disallows main-actor-isolated
+    // initialisers in nonisolated default-value expressions.
     AppModel(
-        settingsRepository: settingsRepository,
-        keychainRepository: keychainRepository,
+        settingsRepository: settingsRepository ?? SettingsRepositoryFake(),
+        keychainRepository: keychainRepository ?? KeychainRepositoryFake(),
         usageService: usageService,
-        notificationService: notificationService
+        notificationService: notificationService ?? NotificationServiceSpy(),
+        pacingHistoryRepository: pacingHistoryRepository ?? PacingHistoryRepositoryFake()
     )
 }
 

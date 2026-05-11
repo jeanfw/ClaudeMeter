@@ -15,6 +15,10 @@ struct AccountUsageState: Equatable, Sendable {
     var isLoading: Bool = false
     var isRefreshing: Bool = false
     var errorMessage: String?
+    /// Weekly pacing verdict (active-hours classifier). `.indeterminate` while cold-starting.
+    var weeklyPacingState: PacingState = .indeterminate
+    /// Projected final weekly utilization at reset, when the classifier has produced a verdict.
+    var weeklyProjectedFinal: Double?
 }
 
 /// Main application model for SwiftUI-first architecture.
@@ -40,6 +44,7 @@ final class AppModel {
     @ObservationIgnored private let keychainRepository: KeychainRepositoryProtocol
     @ObservationIgnored private let usageService: UsageServiceProtocol
     @ObservationIgnored private let notificationService: NotificationServiceProtocol
+    @ObservationIgnored private let pacingHistoryRepository: PacingHistoryRepositoryProtocol
 
     // MARK: - Private
 
@@ -58,10 +63,12 @@ final class AppModel {
         settingsRepository: SettingsRepositoryProtocol = SettingsRepository(),
         keychainRepository: KeychainRepositoryProtocol = KeychainRepository(),
         usageService: UsageServiceProtocol? = nil,
-        notificationService: NotificationServiceProtocol? = nil
+        notificationService: NotificationServiceProtocol? = nil,
+        pacingHistoryRepository: PacingHistoryRepositoryProtocol = PacingHistoryRepository()
     ) {
         self.settingsRepository = settingsRepository
         self.keychainRepository = keychainRepository
+        self.pacingHistoryRepository = pacingHistoryRepository
 
         let networkService = NetworkService()
         let cacheRepository = CacheRepository()
@@ -137,12 +144,36 @@ final class AppModel {
                 isPrimary: isPrimary,
                 forceRefresh: forceRefresh
             )
+
+            // Append a snapshot and classify the weekly pacing.
+            let snapshot = PacingSnapshot(
+                timestamp: Date(),
+                weeklyUtilization: data.weeklyUsage.utilization,
+                weeklyResetAt: data.weeklyUsage.resetAt
+            )
+            let history = await pacingHistoryRepository.append(snapshot, accountId: accountId)
+            let pacing = PacingClassifier.classifyWeekly(
+                currentUtilization: data.weeklyUsage.utilization,
+                resetAt: data.weeklyUsage.resetAt,
+                windowDuration: Constants.Pacing.weeklyWindow,
+                history: history
+            )
+
             var done = self.state(for: accountId)
             done.usageData = data
+            done.weeklyPacingState = pacing.state
+            done.weeklyProjectedFinal = pacing.projectedFinal
             self.accountStates[accountId] = done
 
             await notificationService.evaluateThresholds(
                 usageData: data,
+                settings: settings
+            )
+            await notificationService.evaluatePacingTransition(
+                accountId: accountId,
+                accountLabel: account.label,
+                result: pacing,
+                weeklyResetAt: data.weeklyUsage.resetAt,
                 settings: settings
             )
         } catch {
@@ -242,6 +273,7 @@ final class AppModel {
     func removeAccount(_ accountId: UUID) async throws {
         guard let account = settings.account(withId: accountId) else { return }
         try? await keychainRepository.delete(account: account.keychainAccount)
+        await pacingHistoryRepository.purge(accountId: accountId)
         settings.accounts.removeAll(where: { $0.id == accountId })
         accountStates[accountId] = nil
         if settings.accounts.isEmpty {

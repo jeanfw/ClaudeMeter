@@ -38,6 +38,20 @@ final class NotificationServiceSpy: NotificationServiceProtocol {
 
     func sendResetNotification() async throws {}
 
+    private(set) var lastPacingTransitionAccountId: UUID?
+    private(set) var lastPacingTransitionResult: PacingResult?
+
+    func evaluatePacingTransition(
+        accountId: UUID,
+        accountLabel: String,
+        result: PacingResult,
+        weeklyResetAt: Date,
+        settings: AppSettings
+    ) async {
+        lastPacingTransitionAccountId = accountId
+        lastPacingTransitionResult = result
+    }
+
     func checkNotificationPermissions() async -> Bool {
         hasPermission
     }

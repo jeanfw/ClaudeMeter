@@ -361,17 +361,32 @@ struct SettingsView: View {
     }
 
     private var resetNotificationSection: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Notify on Session Reset")
-                    .font(.subheadline)
-                Text("Get notified when your usage limit resets")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Notify on Session Reset")
+                        .font(.subheadline)
+                    Text("Get notified when your usage limit resets")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Toggle("", isOn: isNotifiedOnResetBinding)
+                    .labelsHidden()
             }
-            Spacer()
-            Toggle("", isOn: isNotifiedOnResetBinding)
-                .labelsHidden()
+            Divider()
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Notify on Pacing Change")
+                        .font(.subheadline)
+                    Text("Alert when your weekly burn rate moves into over- or under-consumption")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Toggle("", isOn: isPacingNotificationEnabledBinding)
+                    .labelsHidden()
+            }
         }
         .padding()
         .background(.quaternary.opacity(0.3))
@@ -420,6 +435,13 @@ struct SettingsView: View {
         Binding(
             get: { appModel.settings.notificationThresholds.isNotifiedOnReset },
             set: { appModel.settings.notificationThresholds.isNotifiedOnReset = $0 }
+        )
+    }
+
+    private var isPacingNotificationEnabledBinding: Binding<Bool> {
+        Binding(
+            get: { appModel.settings.notificationThresholds.isPacingNotificationEnabled },
+            set: { appModel.settings.notificationThresholds.isPacingNotificationEnabled = $0 }
         )
     }
 

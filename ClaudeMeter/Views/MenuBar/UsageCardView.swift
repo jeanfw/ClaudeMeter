@@ -13,6 +13,10 @@ struct UsageCardView: View {
     let usageLimit: UsageLimit
     let icon: String
     let windowDuration: TimeInterval?
+    /// Optional pacing classifier output. When set (and not `.indeterminate`), a colored badge
+    /// replaces the simple "at risk" flame in the footer.
+    var pacingState: PacingState? = nil
+    var projectedFinal: Double? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -75,8 +79,10 @@ struct UsageCardView: View {
 
                 Spacer()
 
-                if let windowDuration,
-                   usageLimit.isAtRisk(windowDuration: windowDuration) {
+                if let pacingState, pacingState != .indeterminate {
+                    pacingBadge(pacingState)
+                } else if let windowDuration,
+                          usageLimit.isAtRisk(windowDuration: windowDuration) {
                     Image(systemName: "flame.fill")
                         .font(.caption)
                         .foregroundColor(.orange)
@@ -92,6 +98,32 @@ struct UsageCardView: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(title): \(Int(usageLimit.percentage))% used, \(usageLimit.status.accessibilityDescription)")
         .accessibilityValue("Resets \(usageLimit.resetDescription)")
+    }
+
+    @ViewBuilder
+    private func pacingBadge(_ state: PacingState) -> some View {
+        switch state {
+        case .overConsumption:
+            Image(systemName: "flame.fill")
+                .font(.caption)
+                .foregroundColor(.orange)
+                .help(projectedFinal.map { "Burning fast — projected to hit ~\(Int($0))% before reset" } ?? "Burning fast — projected to hit the limit")
+                .accessibilityLabel("Pacing: over consumption")
+        case .onTrack:
+            Image(systemName: "target")
+                .font(.caption)
+                .foregroundColor(.green)
+                .help(projectedFinal.map { "On track — projected to land at ~\(Int($0))%" } ?? "On track")
+                .accessibilityLabel("Pacing: on track")
+        case .underConsumption:
+            Image(systemName: "tortoise.fill")
+                .font(.caption)
+                .foregroundColor(.blue)
+                .help(projectedFinal.map { "Slow pace — projected to leave ~\(100 - Int($0))% unused at reset" } ?? "Slow pace")
+                .accessibilityLabel("Pacing: under consumption")
+        case .indeterminate:
+            EmptyView()
+        }
     }
 }
 

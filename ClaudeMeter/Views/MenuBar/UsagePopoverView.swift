@@ -122,7 +122,9 @@ struct UsagePopoverView: View {
                         title: "Weekly Usage",
                         usageLimit: usageData.weeklyUsage,
                         icon: "calendar",
-                        windowDuration: Constants.Pacing.weeklyWindow
+                        windowDuration: Constants.Pacing.weeklyWindow,
+                        pacingState: state.weeklyPacingState,
+                        projectedFinal: state.weeklyProjectedFinal
                     )
                     if appModel.settings.isSonnetUsageShown, let sonnetUsage = usageData.sonnetUsage {
                         UsageCardView(

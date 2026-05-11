@@ -79,10 +79,13 @@ struct UsageCardView: View {
 
                 Spacer()
 
-                if let pacingState, pacingState != .indeterminate {
+                if let pacingState {
+                    // Weekly card path: always render the badge (including the hourglass for
+                    // the indeterminate cold-start state) so the feature is visibly present.
                     pacingBadge(pacingState)
                 } else if let windowDuration,
                           usageLimit.isAtRisk(windowDuration: windowDuration) {
+                    // Session card path: legacy flame-only at-risk indicator.
                     Image(systemName: "flame.fill")
                         .font(.caption)
                         .foregroundColor(.orange)
@@ -122,7 +125,14 @@ struct UsageCardView: View {
                 .help(projectedFinal.map { "Slow pace — projected to leave ~\(100 - Int($0))% unused at reset" } ?? "Slow pace")
                 .accessibilityLabel("Pacing: under consumption")
         case .indeterminate:
-            EmptyView()
+            // Indeterminate is the cold-start state — the classifier needs at least a day's
+            // worth of snapshots before it produces a verdict. Show a subtle indicator so the
+            // feature is visibly present rather than silently absent.
+            Image(systemName: "hourglass")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .help("Pacing: collecting data — verdict appears once enough activity is observed")
+                .accessibilityLabel("Pacing: collecting data")
         }
     }
 }

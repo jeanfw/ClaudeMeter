@@ -55,48 +55,39 @@ enum PacingClassifier {
             return PacingResult(state: .indeterminate, projectedFinal: nil)
         }
 
-        // Don't produce a verdict in the first day or with very sparse history — too easy to
-        // flap between states.
+        // Cold-start guards: don't produce a verdict in the first day or with very sparse history
+        // — too easy to flap between states.
         guard elapsed >= Constants.Pacing.minimumElapsedForVerdict,
               history.count >= Constants.Pacing.minimumHistoryEntriesForVerdict else {
             return PacingResult(state: .indeterminate, projectedFinal: nil)
         }
 
         let sorted = history.sorted { $0.timestamp < $1.timestamp }
-
-        // Walk consecutive pairs accumulating "active" time. A gap longer than maxSnapshotGap
-        // means the app was offline/asleep — we don't count that as either active or inactive,
-        // we just skip the interval.
-        var activeSeconds: TimeInterval = 0
-        var consumedActive: Double = 0
-        var observedElapsed: TimeInterval = 0
-
-        for (previous, current) in zip(sorted, sorted.dropFirst()) {
-            let dt = current.timestamp.timeIntervalSince(previous.timestamp)
-            guard dt > 0, dt < Constants.Pacing.maxSnapshotGap else { continue }
-            observedElapsed += dt
-
-            let du = max(0, current.weeklyUtilization - previous.weeklyUtilization)
-            if du > Constants.Pacing.activityEpsilon {
-                activeSeconds += dt
-                consumedActive += du
-            }
-        }
-
-        guard activeSeconds >= Constants.Pacing.minimumActiveTimeForVerdict,
-              consumedActive > 0 else {
+        guard let first = sorted.first, let last = sorted.last else {
             return PacingResult(state: .indeterminate, projectedFinal: nil)
         }
 
-        // Activity ratio: how much of the *observed* elapsed time has been "active". Apply that
-        // ratio forward to the remaining window to estimate remaining active time. This is the
-        // key correction vs the simple window-relative pace.
-        let activeRatio = observedElapsed > 0 ? activeSeconds / observedElapsed : 0
-        let ratePerActiveSecond = consumedActive / activeSeconds
+        // The Claude API returns weekly utilization as an *integer* percent (e.g. 5, 9), so
+        // measuring "active hours" via per-snapshot deltas is impractical — most refresh
+        // intervals show 0 change, and a true active hour leaves only a single 1% jump in the
+        // data. Instead we extrapolate linearly from the rate observed across the entire
+        // recorded history. This implicitly averages over the user's natural usage pattern
+        // (work hours, sleep) — a steady "8 hours a day" user has their average rate baked in.
+        let historyDuration = last.timestamp.timeIntervalSince(first.timestamp)
+        guard historyDuration >= Constants.Pacing.minimumHistoryDurationForVerdict else {
+            return PacingResult(state: .indeterminate, projectedFinal: nil)
+        }
+
+        let historyDelta = last.weeklyUtilization - first.weeklyUtilization
+        // If utilization actually went down (window reset slipped past the repository's filter)
+        // we can't trust the projection — bail out.
+        guard historyDelta >= 0 else {
+            return PacingResult(state: .indeterminate, projectedFinal: nil)
+        }
+
+        let observedRatePerSecond = historyDelta / historyDuration
         let remainingWindow = resetAt.timeIntervalSince(now)
-        let projectedRemainingActiveSeconds = remainingWindow * activeRatio
-        let projectedRemainingConsumption = projectedRemainingActiveSeconds * ratePerActiveSecond
-        let projectedFinal = currentUtilization + projectedRemainingConsumption
+        let projectedFinal = currentUtilization + observedRatePerSecond * remainingWindow
 
         let state: PacingState
         if projectedFinal >= Constants.Pacing.overConsumptionThreshold {

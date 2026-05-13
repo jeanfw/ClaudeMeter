@@ -56,24 +56,15 @@ enum Constants {
 
         // MARK: - Weekly classifier (active-hours based)
 
-        /// Per-snapshot utilization delta below this is treated as noise (not active). The Claude
-        /// API doesn't return floating-point noise — its utilization values are server-computed
-        /// ratios with one or two decimals — so any positive delta is real activity. We keep a
-        /// tiny floor only to guard against pathological encoding edge cases.
-        static let activityEpsilon: Double = 0.001
-
-        /// Snapshots farther apart than this are treated as an offline gap (skipped, not
-        /// counted as either active or inactive).
-        static let maxSnapshotGap: TimeInterval = 30 * 60
-
-        /// Minimum cumulative active time before the classifier produces a verdict.
-        static let minimumActiveTimeForVerdict: TimeInterval = 60 * 60
-
         /// Don't produce a verdict in the first day of the weekly window — too easy to flap.
         static let minimumElapsedForVerdict: TimeInterval = 24 * 60 * 60
 
         /// Need at least this many snapshots before producing a verdict.
         static let minimumHistoryEntriesForVerdict: Int = 5
+
+        /// Need at least this much elapsed time between the first and last snapshot before
+        /// trusting an extrapolated rate (avoids huge swings from a small initial sample).
+        static let minimumHistoryDurationForVerdict: TimeInterval = 6 * 60 * 60
 
         /// Projected final utilization at or above this → `overConsumption`.
         static let overConsumptionThreshold: Double = 100

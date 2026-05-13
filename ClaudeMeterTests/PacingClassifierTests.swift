@@ -139,42 +139,65 @@ final class PacingClassifierTests: XCTestCase {
         }
     }
 
-    func test_largeGaps_arentCountedAsActive() {
-        // 4 days elapsed but only 2h of dense activity in there (rest = gap > 30 min).
-        // Active time too low → indeterminate.
+    func test_integerPercentJumps_stillProduceVerdict() {
+        // Realistic Claude API behaviour: utilization is an *integer* percent. Over 2 days of
+        // 1-min snapshots we'd see ~4 percent jumps, the rest being identical values. The
+        // linear-extrapolation algorithm should still produce a sensible verdict because it
+        // only looks at first vs last across the history.
         let now = makeNow()
-        let elapsed: TimeInterval = 4 * 24 * 3600
+        let elapsed: TimeInterval = 2 * 24 * 3600
         let resetAt = now.addingTimeInterval(weekly - elapsed)
 
-        // Two snapshots close together (5 min apart) at the start, then a giant gap to now.
-        let history = [
-            PacingSnapshot(
-                timestamp: now.addingTimeInterval(-elapsed),
-                weeklyUtilization: 0,
-                weeklyResetAt: resetAt
-            ),
-            PacingSnapshot(
-                timestamp: now.addingTimeInterval(-elapsed + 5 * 60),
-                weeklyUtilization: 5,
-                weeklyResetAt: resetAt
-            ),
-            // Big gap (3.5 days, far > 30 min) — should NOT be counted toward active time.
-            PacingSnapshot(
-                timestamp: now,
-                weeklyUtilization: 20,
-                weeklyResetAt: resetAt
-            )
-        ]
+        // Build snapshots every 60s holding integer-percent values 5→6→7→8→9.
+        var history: [PacingSnapshot] = []
+        var t = now.addingTimeInterval(-elapsed)
+        var util = 5.0
+        let total = Int(elapsed / 60)
+        for i in 0..<total {
+            // Jump 1% every ~quarter of the data set.
+            if i == total / 4 || i == total / 2 || i == 3 * total / 4 {
+                util += 1
+            }
+            history.append(PacingSnapshot(timestamp: t, weeklyUtilization: util, weeklyResetAt: resetAt))
+            t = t.addingTimeInterval(60)
+        }
 
         let result = PacingClassifier.classifyWeekly(
-            currentUtilization: 20,
+            currentUtilization: util,
             resetAt: resetAt,
             windowDuration: weekly,
             history: history,
             now: now
         )
 
-        // Only 5 min of "active" time accumulated → below the 1h floor → indeterminate.
+        XCTAssertNotEqual(result.state, .indeterminate)
+        XCTAssertNotNil(result.projectedFinal)
+    }
+
+    func test_tooLittleHistoryDuration_isIndeterminate() {
+        // Have plenty of snapshots and elapsed >24h, but the history span is only a couple of
+        // hours — extrapolating from such a small window would amplify noise. Bail out.
+        let now = makeNow()
+        let elapsed: TimeInterval = 2 * 24 * 3600
+        let resetAt = now.addingTimeInterval(weekly - elapsed)
+
+        let history = denseHistory(
+            startingAt: now.addingTimeInterval(-2 * 3600),  // 2 hours of data
+            endingAt: now,
+            startUtilization: 10,
+            endUtilization: 11,
+            resetAt: resetAt,
+            sampleInterval: 60
+        )
+
+        let result = PacingClassifier.classifyWeekly(
+            currentUtilization: 11,
+            resetAt: resetAt,
+            windowDuration: weekly,
+            history: history,
+            now: now
+        )
+
         XCTAssertEqual(result.state, .indeterminate)
     }
 

@@ -20,7 +20,7 @@ enum UsageThresholdType: String {
         switch self {
         case .warning: return "Usage Warning"
         case .critical: return "Critical Usage"
-        case .reset: return "Session Reset"
+        case .reset: return "5-Hour Session Reset"
         case .pacingOver: return "Pacing — Burning Fast"
         case .pacingUnder: return "Pacing — Slow"
         }
@@ -37,7 +37,7 @@ enum UsageThresholdType: String {
         case .critical:
             return "Critical: \(Int(percentage))% of session used. Resets \(resetString)"
         case .reset:
-            return "Your usage limits have been reset. Fresh capacity available!"
+            return "Your 5-hour session window has reset. Fresh capacity available!"
         case .pacingOver:
             return "Projected to hit ~\(Int(percentage))% of your weekly limit before reset \(resetString)."
         case .pacingUnder:
@@ -55,8 +55,9 @@ protocol NotificationServiceProtocol {
     /// Request notification authorization from the user
     func requestAuthorization() async throws -> Bool
 
-    /// Evaluate thresholds and send notifications for new usage data
+    /// Evaluate thresholds and send notifications for new usage data, scoped to one account.
     func evaluateThresholds(
+        accountId: UUID,
         accountLabel: String,
         usageData: UsageData,
         settings: AppSettings

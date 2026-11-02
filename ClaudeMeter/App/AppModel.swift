@@ -19,6 +19,10 @@ struct AccountUsageState: Equatable, Sendable {
     var weeklyPacingState: PacingState = .indeterminate
     /// Projected final weekly utilization at reset, when the classifier has produced a verdict.
     var weeklyProjectedFinal: Double?
+    /// Session pacing verdict (time-proportional classifier). `.indeterminate` while cold-starting.
+    var sessionPacingState: PacingState = .indeterminate
+    /// Projected final session utilization at reset, when the classifier has produced a verdict.
+    var sessionProjectedFinal: Double?
 }
 
 /// Main application model for SwiftUI-first architecture.
@@ -159,10 +163,18 @@ final class AppModel {
                 history: history
             )
 
+            let sessionPacing = PacingClassifier.classifySession(
+                currentUtilization: data.sessionUsage.utilization,
+                resetAt: data.sessionUsage.resetAt,
+                windowDuration: Constants.Pacing.sessionWindow
+            )
+
             var done = self.state(for: accountId)
             done.usageData = data
             done.weeklyPacingState = pacing.state
             done.weeklyProjectedFinal = pacing.projectedFinal
+            done.sessionPacingState = sessionPacing.state
+            done.sessionProjectedFinal = sessionPacing.projectedFinal
             self.accountStates[accountId] = done
 
             await notificationService.evaluateThresholds(

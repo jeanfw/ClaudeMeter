@@ -100,4 +100,51 @@ enum PacingClassifier {
 
         return PacingResult(state: state, projectedFinal: projectedFinal)
     }
+
+    /// Classify pacing for the 5-hour session window.
+    ///
+    /// Unlike the weekly classifier, the session window is short enough that a snapshot history
+    /// adds little — the API reports session utilization at integer-percent granularity and the
+    /// window is over in a few hours. Instead we project linearly from the elapsed fraction of the
+    /// window: if 40% has been consumed after half the window, the projected final is ~80%.
+    /// - Parameters:
+    ///   - currentUtilization: Most recent session utilization (0-100).
+    ///   - resetAt: Reset time reported by the API for the current session window.
+    ///   - windowDuration: Length of the session window (typically `Constants.Pacing.sessionWindow`).
+    ///   - now: Injectable clock for testing.
+    static func classifySession(
+        currentUtilization: Double,
+        resetAt: Date,
+        windowDuration: TimeInterval,
+        now: Date = Date()
+    ) -> PacingResult {
+        guard resetAt > now else {
+            return PacingResult(state: .indeterminate, projectedFinal: nil)
+        }
+        let windowStart = resetAt.addingTimeInterval(-windowDuration)
+        let elapsed = now.timeIntervalSince(windowStart)
+
+        // Cold-start guard: the projection is unstable when very little time has elapsed.
+        guard elapsed >= Constants.Pacing.sessionMinimumElapsedForVerdict else {
+            return PacingResult(state: .indeterminate, projectedFinal: nil)
+        }
+
+        let elapsedFraction = elapsed / windowDuration
+        guard elapsedFraction > 0 else {
+            return PacingResult(state: .indeterminate, projectedFinal: nil)
+        }
+
+        let projectedFinal = currentUtilization / elapsedFraction
+
+        let state: PacingState
+        if projectedFinal >= Constants.Pacing.overConsumptionThreshold {
+            state = .overConsumption
+        } else if projectedFinal < Constants.Pacing.underConsumptionThreshold {
+            state = .underConsumption
+        } else {
+            state = .onTrack
+        }
+
+        return PacingResult(state: state, projectedFinal: projectedFinal)
+    }
 }

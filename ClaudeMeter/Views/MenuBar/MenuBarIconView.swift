@@ -18,6 +18,8 @@ struct MenuBarIconView: View {
     var useColor: Bool = true
     /// When set, a single-character label is rendered before the icon to disambiguate accounts.
     var accountLabel: String? = nil
+    /// Time remaining + pacing verdicts. Used only by the `dualBarTime` style.
+    var dualBarTime: DualBarTimeInfo? = nil
 
     var body: some View {
         HStack(spacing: 3) {
@@ -43,6 +45,8 @@ struct MenuBarIconView: View {
             SegmentedBarIcon(percentage: percentage, status: status, isLoading: isLoading, isStale: isStale, useColor: useColor)
         case .dualBar:
             DualBarIcon(percentage: percentage, weeklyPercentage: weeklyPercentage, status: status, isLoading: isLoading, isStale: isStale, useColor: useColor)
+        case .dualBarTime:
+            DualBarTimeIcon(percentage: percentage, weeklyPercentage: weeklyPercentage, status: status, isLoading: isLoading, isStale: isStale, useColor: useColor, info: dualBarTime)
         case .gauge:
             GaugeIcon(percentage: percentage, status: status, isLoading: isLoading, isStale: isStale, useColor: useColor)
         }

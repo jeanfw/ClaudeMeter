@@ -14,6 +14,7 @@ enum IconStyle: String, Codable, CaseIterable, Identifiable, Sendable {
     case minimal        // Just color-coded percentage text
     case segments       // 5 segments like signal bars
     case dualBar        // Two stacked bars: session + weekly
+    case dualBarTime    // Two stacked bars: session + weekly, with time-remaining + pacing
     case gauge          // SF Symbol gauge icon
 
     var id: String { rawValue }
@@ -26,6 +27,7 @@ enum IconStyle: String, Codable, CaseIterable, Identifiable, Sendable {
         case .minimal: return "Minimal"
         case .segments: return "Segments"
         case .dualBar: return "Dual Bar"
+        case .dualBarTime: return "Dual Bar + Time"
         case .gauge: return "Gauge"
         }
     }
@@ -38,6 +40,7 @@ enum IconStyle: String, Codable, CaseIterable, Identifiable, Sendable {
         case .minimal: return "Minimal percentage only"
         case .segments: return "Segmented bar indicator"
         case .dualBar: return "Two bars showing session and weekly usage"
+        case .dualBarTime: return "Two bars with time remaining and pacing for session and weekly usage"
         case .gauge: return "Gauge indicator"
         }
     }

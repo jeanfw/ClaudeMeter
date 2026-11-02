@@ -47,6 +47,23 @@ extension UsageLimit {
         return formatter.localizedString(for: resetAt, relativeTo: Date())
     }
 
+    /// Compact time remaining until reset, capped at two digits + a unit for the menu bar:
+    /// minutes up to 99 ("47m"), then rounded hours up to 99 ("3h"), then rounded days ("5d").
+    /// Returns "0m" once the reset time has passed.
+    var compactTimeRemaining: String {
+        let remaining = resetAt.timeIntervalSince(Date())
+        guard remaining > 0 else { return "0m" }
+
+        let minutes = Int((remaining / 60).rounded())
+        if minutes <= 99 { return "\(minutes)m" }
+
+        let hours = Int((remaining / 3600).rounded())
+        if hours <= 99 { return "\(hours)h" }
+
+        let days = Int((remaining / 86400).rounded())
+        return "\(days)d"
+    }
+
     /// Exact reset time formatted in user's timezone for tooltip display
     var resetTimeFormatted: String {
         let formatter = DateFormatter()

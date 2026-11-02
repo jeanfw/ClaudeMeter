@@ -54,6 +54,12 @@ enum Constants {
         /// session-window `isAtRisk` check.
         static let riskThreshold: Double = 1.2
 
+        // MARK: - Session classifier (time-proportional)
+
+        /// Don't produce a session verdict in the first part of the 5-hour window — the
+        /// time-proportional projection is wildly unstable when very little time has elapsed.
+        static let sessionMinimumElapsedForVerdict: TimeInterval = 30 * 60
+
         // MARK: - Weekly classifier (active-hours based)
 
         /// Don't produce a verdict in the first day of the weekly window — too easy to flap.

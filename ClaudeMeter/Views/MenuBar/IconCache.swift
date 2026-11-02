@@ -23,7 +23,8 @@ final class IconCache {
         iconStyle: IconStyle,
         weeklyPercentage: Double,
         useColor: Bool,
-        accountLabel: String?
+        accountLabel: String?,
+        dualBarTime: DualBarTimeInfo?
     ) -> NSImage? {
         cache.object(forKey: cacheKey(
             percentage: percentage,
@@ -33,7 +34,8 @@ final class IconCache {
             iconStyle: iconStyle,
             weeklyPercentage: weeklyPercentage,
             useColor: useColor,
-            accountLabel: accountLabel
+            accountLabel: accountLabel,
+            dualBarTime: dualBarTime
         ))
     }
 
@@ -46,7 +48,8 @@ final class IconCache {
         iconStyle: IconStyle,
         weeklyPercentage: Double,
         useColor: Bool,
-        accountLabel: String?
+        accountLabel: String?,
+        dualBarTime: DualBarTimeInfo?
     ) {
         cache.setObject(
             image,
@@ -58,7 +61,8 @@ final class IconCache {
                 iconStyle: iconStyle,
                 weeklyPercentage: weeklyPercentage,
                 useColor: useColor,
-                accountLabel: accountLabel
+                accountLabel: accountLabel,
+                dualBarTime: dualBarTime
             )
         )
     }
@@ -71,11 +75,20 @@ final class IconCache {
         iconStyle: IconStyle,
         weeklyPercentage: Double,
         useColor: Bool,
-        accountLabel: String?
+        accountLabel: String?,
+        dualBarTime: DualBarTimeInfo?
     ) -> NSString {
         let percent = String(format: "%.2f", percentage)
         let weekly = String(format: "%.2f", weeklyPercentage)
         let label = accountLabel ?? ""
-        return "\(percent)|\(weekly)|\(status.rawValue)|\(isLoading)|\(isStale)|\(iconStyle.rawValue)|\(useColor)|\(label)" as NSString
+        // The dualBarTime fields (time remaining + pacing) change independently of the percentages,
+        // so they must be part of the key or a stale image would be reused as the clock advances.
+        let dual: String
+        if let dualBarTime {
+            dual = "\(dualBarTime.sessionRemaining)|\(dualBarTime.weeklyRemaining)|\(dualBarTime.sessionPacing.rawValue)|\(dualBarTime.weeklyPacing.rawValue)"
+        } else {
+            dual = ""
+        }
+        return "\(percent)|\(weekly)|\(status.rawValue)|\(isLoading)|\(isStale)|\(iconStyle.rawValue)|\(useColor)|\(label)|\(dual)" as NSString
     }
 }

@@ -173,6 +173,18 @@ final class MenuBarManager {
         // Only show a label when more than one account is configured — single-account looks cleaner without it.
         let label: String? = appModel.settings.accounts.count > 1 ? account.menuBarInitial : nil
 
+        // Only the dualBarTime style needs time-remaining + pacing; compute it lazily so other
+        // styles keep a stable cache key.
+        let dualBarTime: DualBarTimeInfo? = {
+            guard style == .dualBarTime, let data = state.usageData else { return nil }
+            return DualBarTimeInfo(
+                sessionRemaining: data.sessionUsage.compactTimeRemaining,
+                weeklyRemaining: data.weeklyUsage.compactTimeRemaining,
+                sessionPacing: state.sessionPacingState,
+                weeklyPacing: state.weeklyPacingState
+            )
+        }()
+
         if let cached = iconCache.get(
             percentage: percentage,
             status: status,
@@ -181,7 +193,8 @@ final class MenuBarManager {
             iconStyle: style,
             weeklyPercentage: weeklyPercentage,
             useColor: useColor,
-            accountLabel: label
+            accountLabel: label,
+            dualBarTime: dualBarTime
         ) {
             button.image = cached
             return
@@ -195,7 +208,8 @@ final class MenuBarManager {
             iconStyle: style,
             weeklyPercentage: weeklyPercentage,
             useColor: useColor,
-            accountLabel: label
+            accountLabel: label,
+            dualBarTime: dualBarTime
         )
 
         iconCache.set(
@@ -207,7 +221,8 @@ final class MenuBarManager {
             iconStyle: style,
             weeklyPercentage: weeklyPercentage,
             useColor: useColor,
-            accountLabel: label
+            accountLabel: label,
+            dualBarTime: dualBarTime
         )
 
         button.image = image

@@ -226,4 +226,86 @@ final class PacingClassifierTests: XCTestCase {
         }
         return snapshots
     }
+
+    // MARK: - Session classifier (time-proportional)
+
+    private let session: TimeInterval = Constants.Pacing.sessionWindow
+
+    func test_session_earlyInWindow_isIndeterminate() {
+        let now = makeNow()
+        // 10 minutes into the 5h window → below the 30-minute cold-start guard.
+        let resetAt = now.addingTimeInterval(session - 10 * 60)
+
+        let result = PacingClassifier.classifySession(
+            currentUtilization: 50,
+            resetAt: resetAt,
+            windowDuration: session,
+            now: now
+        )
+
+        XCTAssertEqual(result.state, .indeterminate)
+        XCTAssertNil(result.projectedFinal)
+    }
+
+    func test_session_resetInPast_isIndeterminate() {
+        let now = makeNow()
+        let resetAt = now.addingTimeInterval(-60)
+
+        let result = PacingClassifier.classifySession(
+            currentUtilization: 50,
+            resetAt: resetAt,
+            windowDuration: session,
+            now: now
+        )
+
+        XCTAssertEqual(result.state, .indeterminate)
+    }
+
+    func test_session_proportionalUsage_isOnTrack() {
+        let now = makeNow()
+        // Halfway through the window, 45% used → projected ~90% → on track.
+        let resetAt = now.addingTimeInterval(session / 2)
+
+        let result = PacingClassifier.classifySession(
+            currentUtilization: 45,
+            resetAt: resetAt,
+            windowDuration: session,
+            now: now
+        )
+
+        XCTAssertEqual(result.state, .onTrack)
+        XCTAssertEqual(result.projectedFinal ?? 0, 90, accuracy: 0.001)
+    }
+
+    func test_session_fastBurn_isOverConsumption() {
+        let now = makeNow()
+        // Halfway through, 70% used → projected 140% → burning fast.
+        let resetAt = now.addingTimeInterval(session / 2)
+
+        let result = PacingClassifier.classifySession(
+            currentUtilization: 70,
+            resetAt: resetAt,
+            windowDuration: session,
+            now: now
+        )
+
+        XCTAssertEqual(result.state, .overConsumption)
+        XCTAssertEqual(result.projectedFinal ?? 0, 140, accuracy: 0.001)
+    }
+
+    func test_session_slowBurn_isUnderConsumption() {
+        let now = makeNow()
+        // Halfway through, 20% used → projected 40% → slow pace.
+        let resetAt = now.addingTimeInterval(session / 2)
+
+        let result = PacingClassifier.classifySession(
+            currentUtilization: 20,
+            resetAt: resetAt,
+            windowDuration: session,
+            now: now
+        )
+
+        XCTAssertEqual(result.state, .underConsumption)
+        XCTAssertEqual(result.projectedFinal ?? 0, 40, accuracy: 0.001)
+    }
 }

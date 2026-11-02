@@ -36,10 +36,20 @@ struct UsagePopoverView: View {
 
             footer
         }
-        .frame(width: 320, height: 460)
+        .frame(width: 320, height: popoverHeight)
         .background(Color(nsColor: .windowBackgroundColor))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Usage Dashboard for \(account.label)")
+    }
+
+    /// Shorter when the weekly card is the only one to show (no session limit, no Sonnet card).
+    private var popoverHeight: CGFloat {
+        guard let usageData = state.usageData,
+              usageData.sessionUsage == nil,
+              !(appModel.settings.isSonnetUsageShown && usageData.sonnetUsage != nil) else {
+            return 460
+        }
+        return 310
     }
 
     // MARK: - Sections
@@ -112,12 +122,14 @@ struct UsagePopoverView: View {
         if let usageData = state.usageData {
             ScrollView {
                 VStack(spacing: 16) {
-                    UsageCardView(
-                        title: "5-Hour Session",
-                        usageLimit: usageData.sessionUsage,
-                        icon: "gauge.with.dots.needle.67percent",
-                        windowDuration: Constants.Pacing.sessionWindow
-                    )
+                    if let sessionUsage = usageData.sessionUsage {
+                        UsageCardView(
+                            title: "5-Hour Session",
+                            usageLimit: sessionUsage,
+                            icon: "gauge.with.dots.needle.67percent",
+                            windowDuration: Constants.Pacing.sessionWindow
+                        )
+                    }
                     UsageCardView(
                         title: "Weekly Usage",
                         usageLimit: usageData.weeklyUsage,

@@ -85,9 +85,9 @@ final class UsageServiceTests: XCTestCase {
         let cached = await cacheRepository.get(accountId: account.id)
         let requestCount = await networkService.requestCount
 
-        XCTAssertEqual(usageData.sessionUsage.utilization, TestConstants.sessionPercentage)
+        XCTAssertEqual(usageData.sessionUsage?.utilization, TestConstants.sessionPercentage)
         XCTAssertEqual(usageData.weeklyUsage.utilization, TestConstants.weeklyPercentage)
-        XCTAssertEqual(cached?.sessionUsage.utilization, TestConstants.sessionPercentage)
+        XCTAssertEqual(cached?.sessionUsage?.utilization, TestConstants.sessionPercentage)
         XCTAssertEqual(requestCount, 1)
     }
 
@@ -144,9 +144,9 @@ final class UsageServiceTests: XCTestCase {
 
         let usageData = try await service.fetchUsage(for: account, isPrimary: true, forceRefresh: true)
 
-        XCTAssertEqual(usageData.sessionUsage.utilization, TestConstants.sessionPercentage)
+        XCTAssertEqual(usageData.sessionUsage?.utilization, TestConstants.sessionPercentage)
         XCTAssertEqual(usageData.weeklyUsage.utilization, TestConstants.weeklyPercentage)
-        assertDate(usageData.sessionUsage.resetAt, equalsIso8601String: TestConstants.sessionResetDateString)
+        assertDate(try XCTUnwrap(usageData.sessionUsage).resetAt, equalsIso8601String: TestConstants.sessionResetDateString)
         assertDate(usageData.weeklyUsage.resetAt, equalsIso8601String: TestConstants.weeklyResetDateString)
     }
 
@@ -177,13 +177,39 @@ final class UsageServiceTests: XCTestCase {
 
         let usageData = try await service.fetchUsage(for: account, isPrimary: true, forceRefresh: true)
 
-        XCTAssertEqual(usageData.sessionUsage.utilization, 0)
+        let sessionUsage = try XCTUnwrap(usageData.sessionUsage)
+        XCTAssertEqual(sessionUsage.utilization, 0)
         // Reset date should be in the future, roughly one session window from now.
-        XCTAssertGreaterThan(usageData.sessionUsage.resetAt.timeIntervalSinceNow, 0)
+        XCTAssertGreaterThan(sessionUsage.resetAt.timeIntervalSinceNow, 0)
         XCTAssertLessThanOrEqual(
-            usageData.sessionUsage.resetAt.timeIntervalSinceNow,
+            sessionUsage.resetAt.timeIntervalSinceNow,
             Constants.Pacing.sessionWindow + 5
         )
+    }
+
+    func test_usageFetch_withNullFiveHour_fallsBackToWeekly() async throws {
+        // Shape observed from the live API: session limit absent, extra unknown keys present.
+        let responseData = Data("""
+        {"five_hour":null,"seven_day":{"utilization":63.0,"resets_at":"\(TestConstants.weeklyResetDateString)","limit_dollars":null},"seven_day_sonnet":null,"pace":null}
+        """.utf8)
+        let networkService = NetworkServiceStub(responseData: responseData)
+        let cacheRepository = CacheRepositoryFake()
+        let keychainRepository = KeychainRepositoryFake()
+
+        let service = UsageService(
+            networkService: networkService,
+            cacheRepository: cacheRepository,
+            keychainRepository: keychainRepository
+        )
+
+        let account = ClaudeAccount(label: "Test", organizationId: UUID(uuidString: TestConstants.organizationUUIDString))
+        try await keychainRepository.save(sessionKey: TestConstants.sessionKeyValue, account: account.keychainAccount)
+
+        let usageData = try await service.fetchUsage(for: account, isPrimary: true, forceRefresh: true)
+
+        XCTAssertNil(usageData.sessionUsage)
+        XCTAssertEqual(usageData.weeklyUsage.utilization, 63)
+        XCTAssertEqual(usageData.primaryUsage, usageData.weeklyUsage)
     }
 
     func test_usageFetch_withMalformedResetAt_surfacesInvalidResponse() async throws {

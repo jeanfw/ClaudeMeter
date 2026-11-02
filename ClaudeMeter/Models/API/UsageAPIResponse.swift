@@ -9,7 +9,7 @@ import Foundation
 
 /// API response for usage data
 struct UsageAPIResponse: Codable {
-    let fiveHour: UsageLimitResponse
+    let fiveHour: UsageLimitResponse? // null when the plan exposes no active session limit
     let sevenDay: UsageLimitResponse
     let sevenDaySonnet: UsageLimitResponse?
 
@@ -57,12 +57,15 @@ extension UsageAPIResponse {
         // used today). In that case fall back to the end of the rolling window so the UI shows
         // a sensible "Resets in …" hint instead of refusing the response. We only treat a
         // present-but-malformed date string as a hard error.
-        let sessionResetDate = try parseResetDate(
-            from: fiveHour.resetsAt,
-            field: "fiveHour.resetsAt",
-            formatter: iso8601Formatter,
-            fallback: Constants.Pacing.sessionWindow
-        )
+        let sessionLimit: UsageLimit? = try fiveHour.map { session in
+            let sessionResetDate = try parseResetDate(
+                from: session.resetsAt,
+                field: "fiveHour.resetsAt",
+                formatter: iso8601Formatter,
+                fallback: Constants.Pacing.sessionWindow
+            )
+            return UsageLimit(utilization: session.utilization, resetAt: sessionResetDate)
+        }
         let weeklyResetDate = try parseResetDate(
             from: sevenDay.resetsAt,
             field: "sevenDay.resetsAt",
@@ -81,10 +84,7 @@ extension UsageAPIResponse {
         }
 
         return UsageData(
-            sessionUsage: UsageLimit(
-                utilization: fiveHour.utilization,
-                resetAt: sessionResetDate
-            ),
+            sessionUsage: sessionLimit,
             weeklyUsage: UsageLimit(
                 utilization: sevenDay.utilization,
                 resetAt: weeklyResetDate

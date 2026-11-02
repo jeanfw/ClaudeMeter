@@ -163,11 +163,13 @@ final class AppModel {
                 history: history
             )
 
-            let sessionPacing = PacingClassifier.classifySession(
-                currentUtilization: data.sessionUsage.utilization,
-                resetAt: data.sessionUsage.resetAt,
-                windowDuration: Constants.Pacing.sessionWindow
-            )
+            let sessionPacing = data.sessionUsage.map { session in
+                PacingClassifier.classifySession(
+                    currentUtilization: session.utilization,
+                    resetAt: session.resetAt,
+                    windowDuration: Constants.Pacing.sessionWindow
+                )
+            } ?? PacingResult(state: .indeterminate, projectedFinal: nil)
 
             var done = self.state(for: accountId)
             done.usageData = data

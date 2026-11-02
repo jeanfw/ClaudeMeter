@@ -41,9 +41,11 @@ final class NotificationService: NSObject, NotificationServiceProtocol, UNUserNo
         usageData: UsageData,
         settings: AppSettings
     ) async {
+        guard let sessionUsage = usageData.sessionUsage else { return }
+
         let thresholds = settings.notificationThresholds
-        let percentage = usageData.sessionUsage.percentage
-        let resetTime = usageData.sessionUsage.resetAt
+        let percentage = sessionUsage.percentage
+        let resetTime = sessionUsage.resetAt
 
         var state = await settingsRepository.loadNotificationState()
         let hasPermission = await checkNotificationPermissions()

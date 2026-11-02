@@ -149,6 +149,7 @@ final class MenuBarManager {
             self?.closePopover(for: popoverAccountId ?? setupSentinel)
         }
         let hostingController = NSHostingController(rootView: popoverView)
+        hostingController.sizingOptions = .preferredContentSize
         let popover = NSPopover()
         popover.contentViewController = hostingController
         popover.behavior = .transient
@@ -163,7 +164,7 @@ final class MenuBarManager {
         guard let item = managedItems[account.id], let button = item.statusItem.button else { return }
 
         let state = appModel.state(for: account.id)
-        let percentage = clamped(state.usageData?.sessionUsage.percentage ?? 0)
+        let percentage = clamped(state.usageData?.primaryUsage.percentage ?? 0)
         let weeklyPercentage = clamped(state.usageData?.weeklyUsage.percentage ?? 0)
         let status = state.usageData?.primaryStatus ?? .safe
         let isStale = state.usageData?.isStale ?? false
@@ -178,9 +179,9 @@ final class MenuBarManager {
         let dualBarTime: DualBarTimeInfo? = {
             guard style == .dualBarTime, let data = state.usageData else { return nil }
             return DualBarTimeInfo(
-                sessionRemaining: data.sessionUsage.compactTimeRemaining,
+                sessionRemaining: data.primaryUsage.compactTimeRemaining,
                 weeklyRemaining: data.weeklyUsage.compactTimeRemaining,
-                sessionPacing: state.sessionPacingState,
+                sessionPacing: data.sessionUsage == nil ? state.weeklyPacingState : state.sessionPacingState,
                 weeklyPacing: state.weeklyPacingState
             )
         }()

@@ -1,10 +1,3 @@
-//
-//  AppModel.swift
-//  ClaudeMeter
-//
-//  Created by Edd on 2026-01-09.
-//
-
 import AppKit
 import Foundation
 import Observation
@@ -49,6 +42,7 @@ final class AppModel {
     @ObservationIgnored private let usageService: UsageServiceProtocol
     @ObservationIgnored private let notificationService: NotificationServiceProtocol
     @ObservationIgnored private let pacingHistoryRepository: PacingHistoryRepositoryProtocol
+    @ObservationIgnored private let sessionKeyImportService: SessionKeyImportServiceProtocol
 
     // MARK: - Private
 
@@ -68,11 +62,13 @@ final class AppModel {
         keychainRepository: KeychainRepositoryProtocol = KeychainRepository(),
         usageService: UsageServiceProtocol? = nil,
         notificationService: NotificationServiceProtocol? = nil,
-        pacingHistoryRepository: PacingHistoryRepositoryProtocol = PacingHistoryRepository()
+        pacingHistoryRepository: PacingHistoryRepositoryProtocol = PacingHistoryRepository(),
+        sessionKeyImportService: SessionKeyImportServiceProtocol = SessionKeyImportService()
     ) {
         self.settingsRepository = settingsRepository
         self.keychainRepository = keychainRepository
         self.pacingHistoryRepository = pacingHistoryRepository
+        self.sessionKeyImportService = sessionKeyImportService
 
         let networkService = NetworkService()
         let cacheRepository = CacheRepository()
@@ -296,6 +292,12 @@ final class AppModel {
             settings.isFirstLaunch = true
             refreshTask?.cancel()
         }
+    }
+
+    /// Read the Claude session key from local browser cookies. The caller decides which
+    /// account it belongs to (new account or key update); nothing is saved here.
+    func importSessionKeyFromBrowser() async throws -> ImportedSessionKey {
+        try await sessionKeyImportService.importSessionKey()
     }
 
     // MARK: - Notifications

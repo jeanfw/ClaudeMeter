@@ -22,7 +22,7 @@ final class IconCache {
         isStale: Bool,
         iconStyle: IconStyle,
         weeklyPercentage: Double,
-        useColor: Bool,
+        isColored: Bool,
         accountLabel: String?,
         dualBarTime: DualBarTimeInfo?
     ) -> NSImage? {
@@ -33,7 +33,7 @@ final class IconCache {
             isStale: isStale,
             iconStyle: iconStyle,
             weeklyPercentage: weeklyPercentage,
-            useColor: useColor,
+            isColored: isColored,
             accountLabel: accountLabel,
             dualBarTime: dualBarTime
         ))
@@ -47,7 +47,7 @@ final class IconCache {
         isStale: Bool,
         iconStyle: IconStyle,
         weeklyPercentage: Double,
-        useColor: Bool,
+        isColored: Bool,
         accountLabel: String?,
         dualBarTime: DualBarTimeInfo?
     ) {
@@ -60,7 +60,7 @@ final class IconCache {
                 isStale: isStale,
                 iconStyle: iconStyle,
                 weeklyPercentage: weeklyPercentage,
-                useColor: useColor,
+                isColored: isColored,
                 accountLabel: accountLabel,
                 dualBarTime: dualBarTime
             )
@@ -74,7 +74,7 @@ final class IconCache {
         isStale: Bool,
         iconStyle: IconStyle,
         weeklyPercentage: Double,
-        useColor: Bool,
+        isColored: Bool,
         accountLabel: String?,
         dualBarTime: DualBarTimeInfo?
     ) -> NSString {
@@ -89,6 +89,6 @@ final class IconCache {
         } else {
             dual = ""
         }
-        return "\(percent)|\(weekly)|\(status.rawValue)|\(isLoading)|\(isStale)|\(iconStyle.rawValue)|\(useColor)|\(label)|\(dual)" as NSString
+        return "\(percent)|\(weekly)|\(status.rawValue)|\(isLoading)|\(isStale)|\(iconStyle.rawValue)|\(isColored)|\(label)|\(dual)" as NSString
     }
 }

@@ -19,9 +19,11 @@ struct SetupWizardView: View {
     @State private var isValidating: Bool = false
     @State private var errorMessage: String?
     @State private var hasValidationSucceeded: Bool = false
+    @State private var isImporting: Bool = false
+    @State private var offersFullDiskAccessSettings: Bool = false
 
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 20) {
             VStack(spacing: 8) {
                 if let appIcon = NSImage(named: NSImage.applicationIconName) {
                     Image(nsImage: appIcon)
@@ -49,7 +51,7 @@ struct SetupWizardView: View {
 
                 TextField("e.g. Personal, Client X", text: $labelInput)
                     .textFieldStyle(.roundedBorder)
-                    .disabled(isValidating)
+                    .disabled(isBusy)
                     .accessibilityLabel("Account label")
 
                 Text("Used to distinguish this account in the menu bar")
@@ -64,10 +66,11 @@ struct SetupWizardView: View {
 
                 SecureField("sk-ant-...", text: $sessionKeyInput)
                     .textFieldStyle(.roundedBorder)
-                    .disabled(isValidating)
+                    .disabled(isBusy)
                     .accessibilityLabel("Session key input field")
+                    .accessibilityHint("Enter your Claude session key or paste a Cookie header containing sessionKey")
 
-                Text("Find your session key in Claude.ai browser cookies")
+                Text("Import from a browser signed in to claude.ai, or paste your session")
                     .font(.caption)
                     .foregroundColor(.secondary)
 
@@ -84,12 +87,26 @@ struct SetupWizardView: View {
             .padding(.horizontal, 32)
 
             if let errorMessage {
-                HStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundColor(.orange)
-                    Text(errorMessage)
-                        .font(.callout)
-                        .foregroundColor(.orange)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.orange)
+                            .frame(width: 20)
+                        Text(errorMessage)
+                            .font(.callout)
+                            .foregroundColor(.orange)
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    if offersFullDiskAccessSettings {
+                        Button("Open Full Disk Access") {
+                            SystemSettingsOpener.openFullDiskAccess()
+                        }
+                        .controlSize(.small)
+                        .padding(.leading, 28)
+                    }
                 }
                 .padding(12)
                 .background(Color.orange.opacity(0.1))
@@ -114,29 +131,79 @@ struct SetupWizardView: View {
 
             Spacer()
 
-            Button(action: {
-                Task { await validateAndSave() }
-            }) {
-                HStack {
-                    Text(isValidating ? "Validating..." : "Continue")
+            VStack(spacing: 8) {
+                Button(action: {
+                    Task { await importAndSave() }
+                }) {
+                    HStack {
+                        if isImporting {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+                        Text(isImporting ? "Importing..." : "Import from Browser")
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
+                .buttonStyle(.borderedProminent)
+                .disabled(isBusy)
+                .accessibilityLabel(isImporting ? "Importing session key" : "Import session key from browser")
+                .accessibilityHint("Finds your Claude session key in local browser cookies and adds the account")
+
+                Button(action: {
+                    Task { await validateAndSave() }
+                }) {
+                    HStack {
+                        Text(isValidating ? "Validating..." : "Continue Manually")
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                }
+                .buttonStyle(.bordered)
+                .disabled(!isFormatValid || isBusy)
+                .accessibilityLabel(isValidating ? "Validating session key" : "Continue with manual setup")
             }
-            .allowsHitTesting(isFormatValid && !isValidating)
-            .buttonStyle(.borderedProminent)
             .padding(.horizontal, 32)
             .padding(.bottom, 32)
-            .accessibilityLabel(isValidating ? "Validating session key" : "Continue with setup")
         }
-        .frame(width: 360, height: 460)
+        .frame(width: 370, height: 540)
+        .background(Color(nsColor: .windowBackgroundColor))
     }
 
     // MARK: - Validation
 
+    private var isBusy: Bool {
+        isValidating || isImporting
+    }
+
     private var isFormatValid: Bool {
         let trimmed = sessionKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.hasPrefix("sk-ant-") && trimmed.count > 10
+        guard let value = SessionKey.extractSessionKeyValue(from: trimmed) else { return false }
+        return value.hasPrefix("sk-ant-") && value.count > 10
+    }
+
+    /// Import the session key from browser cookies, then add the account with it.
+    @MainActor
+    private func importAndSave() async {
+        isImporting = true
+        errorMessage = nil
+        offersFullDiskAccessSettings = false
+        hasValidationSucceeded = false
+
+        do {
+            let imported = try await appModel.importSessionKeyFromBrowser()
+            sessionKeyInput = imported.value
+            isImporting = false
+            await validateAndSave()
+            return
+        } catch let error as SessionKeyImportError {
+            errorMessage = error.localizedDescription
+            offersFullDiskAccessSettings = error.offersFullDiskAccessSettings
+        } catch {
+            errorMessage = "Import failed: \(error.localizedDescription)"
+        }
+
+        isImporting = false
     }
 
     @MainActor
@@ -149,6 +216,7 @@ struct SetupWizardView: View {
 
         isValidating = true
         errorMessage = nil
+        offersFullDiskAccessSettings = false
         hasValidationSucceeded = false
 
         do {

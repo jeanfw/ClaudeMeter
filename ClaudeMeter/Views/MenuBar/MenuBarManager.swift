@@ -63,7 +63,7 @@ final class MenuBarManager {
             // Track everything that affects the menu bar layout or icon contents.
             _ = appModel.settings.accounts
             _ = appModel.settings.iconStyle
-            _ = appModel.settings.useColoredIcon
+            _ = appModel.settings.isColoredIcon
             _ = appModel.accountStates
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
@@ -170,7 +170,7 @@ final class MenuBarManager {
         let isStale = state.usageData?.isStale ?? false
         let isLoading = state.isLoading
         let style = appModel.settings.iconStyle
-        let useColor = appModel.settings.useColoredIcon
+        let isColored = appModel.settings.isColoredIcon
         // Only show a label when more than one account is configured — single-account looks cleaner without it.
         let label: String? = appModel.settings.accounts.count > 1 ? account.menuBarInitial : nil
 
@@ -193,7 +193,7 @@ final class MenuBarManager {
             isStale: isStale,
             iconStyle: style,
             weeklyPercentage: weeklyPercentage,
-            useColor: useColor,
+            isColored: isColored,
             accountLabel: label,
             dualBarTime: dualBarTime
         ) {
@@ -208,7 +208,7 @@ final class MenuBarManager {
             isStale: isStale,
             iconStyle: style,
             weeklyPercentage: weeklyPercentage,
-            useColor: useColor,
+            isColored: isColored,
             accountLabel: label,
             dualBarTime: dualBarTime
         )
@@ -221,7 +221,7 @@ final class MenuBarManager {
             isStale: isStale,
             iconStyle: style,
             weeklyPercentage: weeklyPercentage,
-            useColor: useColor,
+            isColored: isColored,
             accountLabel: label,
             dualBarTime: dualBarTime
         )

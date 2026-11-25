@@ -26,7 +26,7 @@ final class SettingsRepositoryTests: XCTestCase {
         settings.isFirstLaunch = false
         settings.accounts = [account]
         settings.iconStyle = .segments
-        settings.useColoredIcon = true
+        settings.isColoredIcon = false
 
         try await repository.save(settings)
         let loaded = await repository.load()
@@ -78,5 +78,21 @@ final class SettingsRepositoryTests: XCTestCase {
         let loaded = await repository.loadNotificationState()
 
         XCTAssertEqual(loaded, state)
+    }
+
+    func test_settingsDecodingWithoutColorKey_usesColoredDefault() throws {
+        let data = #"{"refresh_interval": 300, "icon_style": "segments"}"#.data(using: .utf8)!
+
+        let settings = try JSONDecoder().decode(AppSettings.self, from: data)
+
+        XCTAssertTrue(settings.isColoredIcon)
+    }
+
+    func test_settingsDecodingWithLegacyUseColoredIcon_keepsUserChoice() throws {
+        let data = #"{"refresh_interval": 300, "use_colored_icon": false}"#.data(using: .utf8)!
+
+        let settings = try JSONDecoder().decode(AppSettings.self, from: data)
+
+        XCTAssertFalse(settings.isColoredIcon)
     }
 }

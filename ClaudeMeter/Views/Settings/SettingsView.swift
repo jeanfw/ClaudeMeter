@@ -1,15 +1,7 @@
-//
-//  SettingsView.swift
-//  ClaudeMeter
-//
-//  Created by Edd on 2025-11-14.
-//
-
 import SwiftUI
 import ServiceManagement
 import AppKit
 
-/// Settings view with tabbed interface
 struct SettingsView: View {
     @Bindable var appModel: AppModel
 
@@ -100,7 +92,6 @@ struct SettingsView: View {
                     refreshIntervalSection
                     sonnetUsageSection
                     iconStyleSection
-                    coloredIconSection
                     launchAtLoginSection
                 }
             }
@@ -204,32 +195,33 @@ struct SettingsView: View {
 
     private var iconStyleSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Menu Bar Icon Style")
-                .font(.subheadline)
-            Text("Choose how the usage indicator appears in your menu bar")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            IconStylePicker(selection: $appModel.settings.iconStyle)
-        }
-        .padding()
-        .background(.quaternary.opacity(0.3))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Menu Bar Icon Style")
+                        .font(.subheadline)
 
-    // MARK: - Colored Icon Section
+                    Text("Choose how ClaudeMeter appears in the menu bar")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
 
-    private var coloredIconSection: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Use Colored Status Icon")
-                    .font(.subheadline)
-                Text("Tint the menu bar icon green/orange/red based on usage. When off, the icon adapts to the system menu bar tint (white in dark mode).")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Toggle("", isOn: $appModel.settings.useColoredIcon)
+                Spacer()
+
+                Picker("Icon color", selection: $appModel.settings.isColoredIcon) {
+                    Text("Mono").tag(false)
+                    Text("Color").tag(true)
+                }
+                .pickerStyle(.segmented)
                 .labelsHidden()
+                .frame(width: 136)
+                .help("Mono uses the standard system menu bar tint")
+                .accessibilityLabel("Icon color mode")
+            }
+
+            IconStylePicker(
+                selection: $appModel.settings.iconStyle,
+                isColored: appModel.settings.isColoredIcon
+            )
         }
         .padding()
         .background(.quaternary.opacity(0.3))
